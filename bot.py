@@ -92,20 +92,16 @@ def poll_result(session, key, max_wait=180):
         time.sleep(wait)
     return {"status": "timeout", "error": f"Timed out after {max_wait}s"}
 
-# ─── CONVERTED TO PLAYWRIGHT ASYNC API FOR TELEGRAM COMPATIBILITY ──────────────
+# ─── UNIVERSAL ASYNC PLAYWRIGHT TOKEN CAPTURE ──────────────────────────────────
 async def capture_token_playwright_async():
     from playwright.async_api import async_playwright
     import asyncio
     
-    print("🌐 Launching browser for Turnstile verification...")
+    print("🌐 Launching standard headless browser for Turnstile verification...")
     
     async with async_playwright() as p:
-        # Note: If running on standard PC, remove the executable_path argument.
-        # Keeping it configured here for Termux.
-        browser = await p.chromium.launch(
-            headless=True,
-            executable_path="/data/data/com.termux/files/usr/bin/chromium"
-        )
+        # Defaults to the standard platform binary location automatically
+        browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
             user_agent="Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 "
                        "(KHTML, like Gecko) Chrome/137.0.0.0 Mobile Safari/537.36",
@@ -143,7 +139,7 @@ async def capture_token_playwright_async():
         await page.goto(PAGE_URL, wait_until="domcontentloaded", timeout=30000)
         
         print("⏳ Waiting for Turnstile verification...")
-        for i in range(60):  # Wait up to 60 seconds
+        for i in range(60):
             if token_holder["token"]:
                 break
             
@@ -188,7 +184,7 @@ def generate_image_core(prompt, turnstile_token, model_idx=0):
         "modelName": model["name"],
         "platform": model["platform"],
         "browserFingerprint": fingerprint,
-        "width": 1,  # 1:1 Default Ratio
+        "width": 1,
         "height": 1,
         "turnstileToken": turnstile_token
     }
@@ -238,7 +234,6 @@ async def generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     status_message = await update.message.reply_text("⏳ Spawning headless browser environment to resolve Turnstile Captcha...")
 
-    # Grab token asynchronously inside the loop execution context
     try:
         token = await capture_token_playwright_async()
     except Exception as e:
@@ -246,12 +241,11 @@ async def generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if not token:
-        await status_message.edit_text("❌ Headless execution timed out out while tracking the Turnstile frame token.")
+        await status_message.edit_text("❌ Headless execution timed out while tracking the Turnstile frame token.")
         return
 
-    await status_message.edit_text("🚀 Token acquired successfully! dispatching generation packet to API...")
+    await status_message.edit_text("🚀 Token acquired successfully! Dispatching generation packet to API...")
     
-    # Process request (Defaults to Gemini 2.5 Flash)
     success, file_or_error = generate_image_core(prompt, token, model_idx=0)
 
     if success:

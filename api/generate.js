@@ -35,7 +35,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 module.exports = async (req, res) => {
     // Only allow POST requests
     if (req.method !== 'POST') {
-        return res.status(45).json({ error: 'Method not allowed. Use POST.' });
+        return res.status(405).json({ error: 'Method not allowed. Use POST.' });
     }
 
     const { prompt, model_idx = 0, ratio_idx = 1 } = req.body;

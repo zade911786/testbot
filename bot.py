@@ -3,12 +3,25 @@ import os
 import re
 import json
 import time
+import sys
 import random
 import pathlib
 from datetime import datetime
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 import requests
+
+# ─── AUTOMATIC PLAYWRIGHT BROWSER INSTALLER ───────────────────────────────────
+# This forces the hosting platform to download the missing headless binaries on boot.
+print("📦 Checking Playwright browser dependencies...")
+try:
+    import playwright
+    # Execute the command programmatically within the server environment
+    os.system(f"{sys.executable} -m playwright install chromium")
+    print("✅ Playwright browser installation check complete.")
+except Exception as e:
+    print(f"⚠️ Automatic browser installation warning: {e}")
+# ──────────────────────────────────────────────────────────────────────────────
 
 # ─── Config From Original Script ──────────────────────────────────────────────
 MODELS = [
@@ -100,7 +113,6 @@ async def capture_token_playwright_async():
     print("🌐 Launching standard headless browser for Turnstile verification...")
     
     async with async_playwright() as p:
-        # Defaults to the standard platform binary location automatically
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
             user_agent="Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 "

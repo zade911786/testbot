@@ -1,0 +1,9 @@
+{
+  "name": "freeimgen-vercel-api",
+  "version": "1.0.0",
+  "main": "api/generate.js",
+  "dependencies": {
+    "@sparticuz/chromium": "^123.0.0",
+    "playwright-core": "^1.43.0"
+  }
+}

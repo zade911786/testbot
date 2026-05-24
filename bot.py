@@ -92,23 +92,29 @@ def poll_result(session, key, max_wait=180):
         time.sleep(wait)
     return {"status": "timeout", "error": f"Timed out after {max_wait}s"}
 
-# ─── UNCHANGED PLAYWRIGHT TOKEN CAPTURE FROM SCRIPT ───────────────────────────
-def capture_token_playwright():
-    from playwright.sync_api import sync_playwright
+# ─── CONVERTED TO PLAYWRIGHT ASYNC API FOR TELEGRAM COMPATIBILITY ──────────────
+async def capture_token_playwright_async():
+    from playwright.async_api import async_playwright
+    import asyncio
     
     print("🌐 Launching browser for Turnstile verification...")
     
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context(
+    async with async_playwright() as p:
+        # Note: If running on standard PC, remove the executable_path argument.
+        # Keeping it configured here for Termux.
+        browser = await p.chromium.launch(
+            headless=True,
+            executable_path="/data/data/com.termux/files/usr/bin/chromium"
+        )
+        context = await browser.new_context(
             user_agent="Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 "
                        "(KHTML, like Gecko) Chrome/137.0.0.0 Mobile Safari/537.36",
         )
-        page = context.new_page()
+        page = await context.new_page()
         
         token_holder = {"token": None}
         
-        def on_request(request):
+        async def on_request(request):
             if "turnstileToken" in (request.post_data or ""):
                 try:
                     body = json.loads(request.post_data)
@@ -119,7 +125,7 @@ def capture_token_playwright():
                 except:
                     pass
         
-        def on_response(response):
+        async def on_response(response):
             req = response.request
             if "turnstileToken" in (req.post_data or ""):
                 try:
@@ -134,7 +140,7 @@ def capture_token_playwright():
         page.on("request", on_request)
         page.on("response", on_response)
         
-        page.goto(PAGE_URL, wait_until="domcontentloaded", timeout=30000)
+        await page.goto(PAGE_URL, wait_until="domcontentloaded", timeout=30000)
         
         print("⏳ Waiting for Turnstile verification...")
         for i in range(60):  # Wait up to 60 seconds
@@ -142,7 +148,7 @@ def capture_token_playwright():
                 break
             
             try:
-                token = page.evaluate("""() => {
+                token = await page.evaluate("""() => {
                     const input = document.querySelector('input[name="cf-turnstile-response"]');
                     if (input && input.value) return input.value;
                     if (window.turnstile) {
@@ -160,9 +166,9 @@ def capture_token_playwright():
             except:
                 pass
             
-            time.sleep(1)
+            await asyncio.sleep(1)
         
-        browser.close()
+        await browser.close()
         
         if token_holder["token"]:
             print("\n✅ Turnstile token captured!")
@@ -232,9 +238,9 @@ async def generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     status_message = await update.message.reply_text("⏳ Spawning headless browser environment to resolve Turnstile Captcha...")
 
-    # Grab token via original Playwright configuration logic
+    # Grab token asynchronously inside the loop execution context
     try:
-        token = capture_token_playwright()
+        token = await capture_token_playwright_async()
     except Exception as e:
         await status_message.edit_text(f"❌ Playwright runtime exception: `{str(e)}`")
         return
